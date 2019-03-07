@@ -3,33 +3,30 @@ let knex = require('knex')(connection)
 
 
 module.exports = {
-    create(callItWhatYouWill) {
-        return database("students").insert(callItWhatYouWill);
-    },
     list() {
-        return knex("classmates");
+        return knex("subscribers");
     },
-    getById(id) {
+    getByCat(cat) {
         return knex
             .select()
-            .from("classmates")
-            .where("id", id);
+            .from("subscribers")
+            .where("category", cat);
     },
-    createStudent(student) {
-        return knex("classmates").insert(student, ["id", "firstName", "lastName"]);
+    createSubscriber(subscriber) {
+        return knex("subscribers").insert(subscriber, ["Name", "Email", "Passcode"]);
     },
-    deleteStudent(id) {
+    deleteSubscriber(code) {
         return knex
             .select()
-            .from("classmates")
-            .where("id", id)
+            .from("subscribers")
+            .where("Passcode", code)
             .del()
             .returning("*");
     },
-    updateStudent(id, body) {
+    updateSubscriber(id, body) {
         return knex
             .select()
-            .from("classmates")
+            .from("subscribers")
             .where("id", id)
             .update(body)
             .returning("*");
