@@ -3,17 +3,23 @@ let knex = require('knex')(connection)
 
 
 module.exports = {
-    list() {
+    listSubs() {
         return knex("subscribers");
+    },
+    listPosts() {
+        return knex("posts");
     },
     getByCat(cat) {
         return knex
             .select()
             .from("subscribers")
-            .where("category", cat);
+            .where("Categories", cat);
     },
-    createSubscriber(subscriber) {
-        return knex("subscribers").insert(subscriber, ["Name", "Email", "Passcode"]);
+    addSubscriber(subscriber) {
+        return knex("subscribers").insert(subscriber, ["Name", "Email", "Categories", "Passcode"]);
+    },
+    addPost(post) {
+        return knex("posts").insert(post, ["Title", "Subtitle", "Category", "Slug"])
     },
     deleteSubscriber(code) {
         return knex

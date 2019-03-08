@@ -14,45 +14,73 @@ sgMail.setApiKey(process.env.SGKEY);
 app.use(bodyParser.json());
 app.use(cors());
 
+//testing variables
 
-emailarr = ['huntapplegate@gmail.com', 'hunt@huntcodes.co']
-const msg1 = {
-  to: emailarr,
-  from: 'test@example.com',
-  subject: 'Thank you for signing up',
-  text: 'Welcome to arthuranteater!',
-  html: '<div><h2>Welcome</h2><p><strong>Welcome to arthuranteater!</strong></p><h2>Latest Post</h2><p><strong>How-to-Redux</strong></p></div>',
-};
+const name = 'Hunt'
+const email = 'hunt@huntcodes.co'
+const tester2 = ['huntapplegate@gmail.com', 'hunt@huntcodes.co']
 
-const msg = {
-  to: emailarr,
-  from: 'test@example.com',
-  subject: 'Sending with SendGrid is Fun',
-  text: 'and easy to do anywhere, even with Node.js',
-  html: '<div><h2>Paragraph 1</h2><p><strong>and easy to do anywhere, even with Node.js</strong></p><h2>Paragraph 2</h2><p><strong>and easy to do anywhere, even with Node.js</strong></p></div>',
-};
+//working variables
+let latestTitle = ''
+let LatestSubtitle = ''
+let LatestSlug = ''
+
+
+
 
 app.listen(port, (req, res) => {
   console.log(`listening on ${port}`);
 });
 
+//to view all posts
+
+app.get("/", (req, res) => {
+  queries.listPosts().then(data => {
+    res.json({ data })
+  })
+})
 
 //to send post, get subscribers by category, add email addresses, and send
 
 app.get("/:cat", (req, res) => {
   queries.getByCat(req.params.cat).then(data => {
     res.json({ data })
-    sgMail.sendMultiple(msg)
+    sgMail.sendMultiple(post)
   });
 });
 
 //to create new suscriber
 
-app.post("/suscribers/", (req, res) => {
-  queries.createSubscriber(req.body).then(data => {
+app.post("/subscribers/", (req, res) => {
+  const welcome = {
+    to: {
+      name: name,
+      email: email,
+    },
+    from: {
+      name: 'arthuranteater',
+      email: 'no-reply@arthuranteater.com'
+    },
+    subject: 'Thank you for signing up',
+    text: 'Welcome to arthuranteater!',
+    html: `<h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></3><h2>Latest Post</h2><p><strong>How-to-Redux</strong></p><a href="https://arthuranteater.com/unsubscribe" target="_blank">Unsubscribe</a><p id="code"></p></div>`,
+  }
+  queries.addSubscriber(req.body).then(data => {
     res.json({ data })
-    sgMail.send(msg1)
-  });
+    welcome.to.name = data[0].Name
+    welcome.to.email = data[0].Email
+    welcome.subject = `Thanks for subscribing ${data[0].Name}`
+    welcome.html = `<h2>Welcome to arthuranteater, ${data[0].Name}!</h2>` + welcome.html + `<h4>Subscriber ID: ${data[0].Passcode}</h4>`
+    sgMail.send(welcome, (err, res) => {
+      if (err) {
+        console.error(err.toString())
+        console.log(res)
+      }
+      else {
+        console.log("sent")
+      }
+    })
+  })
 });
 
 //to delete subscriber
@@ -63,10 +91,32 @@ app.delete("/:code", (req, res) => {
 
 //to add new blog post
 
-app.post("/posts/", (req, res, next) => {
-  res.send('working')
-  console.log('msg', msg)
-  sgMail.sendMultiple(msg)
+app.post("/posts/", (req, res, nxt) => {
+  queries.addPost(req.body).then(data => {
+    res.json({ data })
+    let cat = data[0].Category
+    queries.getByCat(cat).then(data => {
+      let elist = []
+      data.map(subs => {
+        elist.push(`${subs.Name} <${subs.Email}>`)
+      })
+      console.log("elist", elist)
+      const post = {
+        to: elist,
+        from: ' <someone@example.org>',
+        subject: 'New Blog Post',
+        text: 'new blog post',
+        html: `<div><h2>Raspberry Pi GPS</h2><p><strong>step-by-step guide to building</strong></p><h2>How to Redux</h2><p><strong>setting up store</strong></p></div>`,
+      }
+      sgMail.sendMultiple(post, (err, res) => {
+        if (err) {
+          console.error(err.toString())
+          console.log(res)
+        }
+        else {
+          console.log("sent")
+        }
+      })
+    })
+  })
 })
-
-

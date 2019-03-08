@@ -7,12 +7,9 @@ exports.up = function (knex, Promise) {
         subscriber.text("Categories")
         subscriber.integer("Passcode")
     });
-
-
 };
 
 exports.down = function (knex, Promise) {
-    exports.down = function (knex, Promise) {
-        return knex.schema.dropTableIfExists("subscribers")
-    };
+    return knex.schema.dropTableIfExists("subscribers")
 };
+
