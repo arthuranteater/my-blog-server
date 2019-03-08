@@ -32,7 +32,17 @@ app.listen(port, (req, res) => {
   console.log(`listening on ${port}`);
 });
 
-//to view all posts
+//to list all subs
+
+app.get("/subs/", (req, res) => {
+  queries.listSubs().then(data => {
+    res.send(data)
+    // res.json({ data })
+  })
+})
+
+
+//to list all posts
 
 app.get("/", (req, res) => {
   queries.listPosts().then(data => {
@@ -45,7 +55,6 @@ app.get("/", (req, res) => {
 app.get("/:cat", (req, res) => {
   queries.getByCat(req.params.cat).then(data => {
     res.json({ data })
-    sgMail.sendMultiple(post)
   });
 });
 
@@ -97,17 +106,17 @@ app.post("/posts/", (req, res, nxt) => {
     let cat = data[0].Category
     queries.getByCat(cat).then(data => {
       let elist = []
-      data.map(subs => {
-        elist.push(`${subs.Name} <${subs.Email}>`)
+      data.map(sub => {
+        elist.push(`${sub.Name} <${sub.Email}>`)
       })
-      console.log("elist", elist)
       const post = {
         to: elist,
-        from: ' <someone@example.org>',
+        from: 'arthuranteater <hunt@huntcodes.co>',
         subject: 'New Blog Post',
         text: 'new blog post',
         html: `<div><h2>Raspberry Pi GPS</h2><p><strong>step-by-step guide to building</strong></p><h2>How to Redux</h2><p><strong>setting up store</strong></p></div>`,
       }
+      console.log('to', post.to)
       sgMail.sendMultiple(post, (err, res) => {
         if (err) {
           console.error(err.toString())

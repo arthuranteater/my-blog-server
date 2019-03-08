@@ -13,7 +13,7 @@ module.exports = {
         return knex
             .select()
             .from("subscribers")
-            .where("Categories", cat);
+            .where('Categories', 'like', `%${cat}%`)
     },
     addSubscriber(subscriber) {
         return knex("subscribers").insert(subscriber, ["Name", "Email", "Categories", "Passcode"]);
@@ -27,14 +27,6 @@ module.exports = {
             .from("subscribers")
             .where("Passcode", code)
             .del()
-            .returning("*");
-    },
-    updateSubscriber(id, body) {
-        return knex
-            .select()
-            .from("subscribers")
-            .where("id", id)
-            .update(body)
             .returning("*");
     }
 };
