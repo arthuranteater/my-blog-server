@@ -34,33 +34,23 @@ app.listen(port, (req, res) => {
 
 //to list all subs
 
-app.get("/subs/", (req, res) => {
+app.post(`/${process.env.ALLSUB}/`, (req, res) => {
   queries.listSubs().then(data => {
-    res.send(data)
-    // res.json({ data })
+    res.json({ data })
   })
 })
 
-
 //to list all posts
 
-app.get("/", (req, res) => {
+app.post(`/${process.env.ALLPOST}/`, (req, res) => {
   queries.listPosts().then(data => {
     res.json({ data })
   })
 })
 
-//to send post, get subscribers by category, add email addresses, and send
+//to create new sub
 
-app.get("/:cat", (req, res) => {
-  queries.getByCat(req.params.cat).then(data => {
-    res.json({ data })
-  });
-});
-
-//to create new suscriber
-
-app.post("/subscribers/", (req, res) => {
+app.post(`/${process.env.ADDSUB}/`, (req, res) => {
   const welcome = {
     to: {
       name: name,
@@ -68,11 +58,14 @@ app.post("/subscribers/", (req, res) => {
     },
     from: {
       name: 'arthuranteater',
-      email: 'no-reply@arthuranteater.com'
+      email: 'no-reply@huntcodes.com'
     },
     subject: 'Thank you for signing up',
     text: 'Welcome to arthuranteater!',
-    html: `<h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></3><h2>Latest Post</h2><p><strong>How-to-Redux</strong></p><a href="https://arthuranteater.com/unsubscribe" target="_blank">Unsubscribe</a><p id="code"></p></div>`,
+    html: `<h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
+    <p><strong>You are set up to receive alerts for new posts. If our emails go to spam, try adding us to your contacts.</strong></p>
+    <a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a>
+    <a href="https://arthuranteater.com/unsubscribe" target="_blank">Unsubscribe</a></div>`,
   }
   queries.addSubscriber(req.body).then(data => {
     res.json({ data })
@@ -94,13 +87,13 @@ app.post("/subscribers/", (req, res) => {
 
 //to delete subscriber
 
-app.delete("/:code", (req, res) => {
-  queries.deleteSubscriber(req.params.code).then(data => res.json({ data }));
+app.post(`/${process.env.DELSUB}/`, (req, res) => {
+  queries.deleteSubscriber(req.body.Email, req.body.Passcode).then(data => res.json({ data }));
 });
 
 //to add new blog post
 
-app.post("/posts/", (req, res, nxt) => {
+app.post(`/${process.env.ADDPOST}/`, (req, res, nxt) => {
   queries.addPost(req.body).then(data => {
     res.json({ data })
     let cat = data[0].Category
@@ -111,7 +104,7 @@ app.post("/posts/", (req, res, nxt) => {
       })
       const post = {
         to: elist,
-        from: 'arthuranteater <hunt@huntcodes.co>',
+        from: 'arthuranteater <no-reply@huntcodes.co>',
         subject: 'New Blog Post',
         text: 'new blog post',
         html: `<div><h2>Raspberry Pi GPS</h2><p><strong>step-by-step guide to building</strong></p><h2>How to Redux</h2><p><strong>setting up store</strong></p></div>`,

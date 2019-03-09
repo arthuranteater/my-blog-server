@@ -15,17 +15,18 @@ module.exports = {
             .from("subscribers")
             .where('Categories', 'like', `%${cat}%`)
     },
-    addSubscriber(subscriber) {
-        return knex("subscribers").insert(subscriber, ["Name", "Email", "Categories", "Passcode"]);
+    addSubscriber(sub) {
+        return knex("subscribers").insert(sub, ["Name", "Email", "Categories", "Passcode"]);
     },
     addPost(post) {
         return knex("posts").insert(post, ["Title", "Subtitle", "Category", "Slug"])
     },
-    deleteSubscriber(code) {
+    deleteSubscriber(email, code) {
         return knex
             .select()
             .from("subscribers")
             .where("Passcode", code)
+            .andWhere("Email", email)
             .del()
             .returning("*");
     }
