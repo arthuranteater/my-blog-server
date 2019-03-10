@@ -5,7 +5,7 @@ exports.up = function (knex, Promise) {
         subscriber.text("Name");
         subscriber.text("Email");
         subscriber.text("Categories")
-        subscriber.integer("Passcode")
+        subscriber.text("Passcode")
     });
 };
 
