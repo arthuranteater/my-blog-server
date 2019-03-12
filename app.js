@@ -10,23 +10,16 @@ const port = process.env.PORT || 4000;
 const queries = require("./queries")
 
 dotenv.config()
-sgMail.setApiKey(process.env.SGKEY);
-app.use(bodyParser.json());
-app.use(cors());
+sgMail.setApiKey(process.env.SGKEY)
+app.use(bodyParser.json())
+app.use(cors())
+
 
 //testing variables
 
-const name = 'Hunt'
-const email = 'hunt@huntcodes.co'
-const tester2 = ['huntapplegate@gmail.com', 'hunt@huntcodes.co']
-
-//working variables
-let latestTitle = ''
-let LatestSubtitle = ''
-let LatestSlug = ''
-
-
-
+// const name = 'Hunt'
+// const email = 'hunt@huntcodes.co'
+// const tester2 = ['huntapplegate@gmail.com', 'hunt@huntcodes.co']
 
 app.listen(port, (req, res) => {
   console.log(`listening on ${port}`);
@@ -51,6 +44,13 @@ app.post(`/${process.env.ALLPOST}/`, (req, res) => {
 //to create new sub
 
 app.post(`/${process.env.ADDSUB}/`, (req, res) => {
+  let title = req.body.post.title
+  let subTitle = req.body.post.subTitle
+  let slug = req.body.post.slug
+  let name = req.body.Name
+  let pass = req.body.Passcode
+  let cats = req.body.Categories
+  let email = req.body.Email
   const welcome = {
     to: {
       name: name,
@@ -60,30 +60,33 @@ app.post(`/${process.env.ADDSUB}/`, (req, res) => {
       name: 'arthuranteater',
       email: 'no-reply@huntcodes.com'
     },
-    subject: 'Thank you for signing up',
+    subject: `Thanks for subscribing, ${name}`,
     text: 'Welcome to arthuranteater!',
-    html: `<h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
-    <p><strong>You are set up to receive alerts for new posts. If our emails go to spam, try adding us to your contacts.</strong></p>
+    html: `<h2>Welcome to arthuranteater, ${name}!</h2><h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
+    <p><strong>You are set up to receive alerts for the catergories: ${cats}. If our emails go to spam, try adding us to your contacts.</strong></p>
+    <h3><a href=http://localhost:8000/subscribe${slug}>${title}</a></h3><h4>${subTitle}</h4>
     <a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a>
-    <a href="https://arthuranteater.com/unsubscribe" target="_blank">Unsubscribe</a></div>`,
+    <a href="https://arthuranteater.com/unsubscribe" target="_blank">Unsubscribe</a></div>
+    <h4>Subscriber ID: ${pass}</h4>`,
   }
-  queries.addSubscriber(req.body).then(data => {
-    res.json({ data })
-    welcome.to.name = data[0].Name
-    welcome.to.email = data[0].Email
-    welcome.subject = `Thanks for subscribing ${data[0].Name}`
-    welcome.html = `<h2>Welcome to arthuranteater, ${data[0].Name}!</h2>` + welcome.html + `<h4>Subscriber ID: ${data[0].Passcode}</h4>`
-    sgMail.send(welcome, (err, res) => {
-      if (err) {
-        console.error(err.toString())
-        console.log(res)
-      }
-      else {
-        console.log("sent")
-      }
-    })
+  sgMail.send(welcome, (err, res) => {
+    if (err) {
+      console.error(err.toString())
+      console.log(res)
+    }
+    else {
+      console.log("sent welcome email")
+    }
   })
-});
+  delete req.body.post
+  queries.addSubscriber(req.body).then(() => {
+    console.log('added subscriber')
+    res.status(200).send('pkg received')
+  }).catch(() => {
+    console.log('no subscriber added')
+    res.status(400).send('pkg not received')
+  })
+})
 
 //to delete subscriber
 
