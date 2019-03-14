@@ -106,13 +106,15 @@ app.post(`/${process.env.WELCOME}/`, (req, res, next) => {
   console.log('welcome email req')
   getDate()
   let type = 'welcome'
-  let title = req.body.post.title
-  let subTitle = req.body.post.subTitle
-  let slug = req.body.post.slug
-  let name = req.body.Name
-  let pass = req.body.Passcode
-  let cats = req.body.Categories
-  let email = req.body.Email
+  let body = req.body
+  let post = req.body.post
+  let title = post.title
+  let subTitle = post.subTitle
+  let slug = post.slug
+  let name = body.Name
+  let pass = body.Passcode
+  let cats = body.Categories
+  let email = body.Email
   const welcome = {
     to: {
       name: name,
