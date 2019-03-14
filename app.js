@@ -14,8 +14,15 @@ sgMail.setApiKey(process.env.SGKEY)
 app.use(bodyParser.json())
 app.use(cors())
 app.use(function (err, req, res, next) {
-  console.log('err', err.message)
-  res.status(404).json(err)
+  if (err) {
+    console.log('err', err.message)
+    res.status(404).json({ Response: err.message })
+  }
+})
+
+
+app.listen(port, (req, res) => {
+  console.log(`listening on ${port}`);
 })
 
 //today's date
@@ -34,11 +41,6 @@ const getDate = () => {
   }
   today = yyyy + '-' + mm + '-' + dd
 }
-
-
-app.listen(port, (req, res) => {
-  console.log(`listening on ${port}`);
-})
 
 //all subs
 
@@ -103,7 +105,6 @@ app.post(`/${process.env.WELCOME}/`, (req, res, next) => {
   res.status(200)
   console.log('welcome email req')
   getDate()
-  let edate = today
   let type = 'welcome'
   let title = req.body.post.title
   let subTitle = req.body.post.subTitle
@@ -136,7 +137,7 @@ app.post(`/${process.env.WELCOME}/`, (req, res, next) => {
       console.error('Send Grid Error:', mes)
       console.log(`Send Grid Response: ${sgres}`)
       let epkg = {
-        Email: email, Name: name, Message: mes, Type: type, EDate: edate
+        Email: email, Name: name, Message: mes, Type: type, EDate: today
       }
       queries.addErr(epkg).then(data => {
         console.log('error added to log')
@@ -177,70 +178,20 @@ app.post(`/${process.env.ADDSUB}/`, (req, res, next) => {
   })
 })
 
-
-
-//new sub
-
-// app.post(`/${process.env.NEWSUB}/`, (req, res, next) => {
-//   res.status(200)
-//   console.log('subscriber received')
-//   let title = req.body.post.title
-//   let subTitle = req.body.post.subTitle
-//   let slug = req.body.post.slug
-//   let name = req.body.Name
-//   let pass = req.body.Passcode
-//   let cats = req.body.Categories
-//   let email = req.body.Email
-//   const welcome = {
-//     to: {
-//       name: name,
-//       email: email,
-//     },
-//     from: {
-//       name: 'arthuranteater',
-//       email: 'no-reply@huntcodes.com'
-//     },
-//     subject: `Thanks for subscribing, ${name}`,
-//     text: 'Welcome to arthuranteater!',
-//     html: `<h2>Welcome to arthuranteater, ${name}!</h2><h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
-//   <p><strong>You are set up to receive alerts for the catergories: ${cats}. If our emails go to spam, try adding us to your contacts.</strong></p>
-//   <h3><a href=http://localhost:8000${slug}>${title}</a></h3><h4>${subTitle}</h4>
-//   <div><a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a><span> | </span><a href="https://arthuranteater.com/unsubscribe" target="_blank">Unsubscribe</a></div>
-//   <h4>Subscriber ID: ${pass}</h4>`,
-//   }
-//   sgMail.send(welcome, (err, sgres) => {
-//     if (err) {
-//       console.error('Send Grid Error:', err.toString())
-//     }
-//     else {
-//       console.log(`sent welcome email ${welcome.to.email}`)
-//     }
-//   })
-//   delete req.body.post
-//   queries.addSub(req.body).then(data => {
-//     res.json({ Response: 'subscriber added' })
-//     console.log('subscriber added')
-//   }).catch(err => {
-//     console.error('Query Error:', err)
-//     res.status(200).json({ Response: 'query error' })
-//   })
-// })
-
-//delete subscriber
+//remove sub
 
 app.post(`/${process.env.DELSUB}/`, (req, res, next) => {
   res.status(200)
   console.log('body', req.body)
   getDate()
-  let edate = today
   let type = 'unsubscribe'
   let email = req.body.Email
   queries.delSub(email).then(data => {
     if (data.length == 0) {
       console.error('No matches')
-      res.json({ Response: 'No matches!' })
+      res.json({ Response: 'No matches' })
     } else {
-      res.json({ Response: 'subscriber removed' })
+      res.json({ Response: 'Subscriber removed' })
       console.log('subscriber removed')
       let name = data[0].Name
       const unsubscribe = {
@@ -261,11 +212,10 @@ app.post(`/${process.env.DELSUB}/`, (req, res, next) => {
       sgMail.send(unsubscribe, (err, res) => {
         if (err) {
           let mes = err.toString()
-          res.json({ Response: `Send Grid Error: ${mes}` })
           console.error('Send Grid:', mes)
           console.log(`Send Grid Response: ${sgres}`)
           let epkg = {
-            Email: email, Name: name, Message: mes, Type: type, EDate: edate
+            Email: email, Name: name, Message: mes, Type: type, EDate: today
           }
           queries.addErr(epkg).then(data => {
             console.log('err added to db')
@@ -274,7 +224,7 @@ app.post(`/${process.env.DELSUB}/`, (req, res, next) => {
           })
         }
         else {
-          console.log(`sent unsubscribe email to ${unsubscribe.to.email}`)
+          console.log(`sent unsubscribe email to ${email}`)
         }
       })
     }
@@ -284,13 +234,12 @@ app.post(`/${process.env.DELSUB}/`, (req, res, next) => {
   })
 })
 
-//new blog post
+//new post
 
 app.post(`/${process.env.ADDPOST}/`, (req, res, nxt) => {
   res.status(200)
   console.log('new post req')
   getDate()
-  let edate = today
   let type = 'post'
   let post = req.body
   let title = post.Title
@@ -327,7 +276,7 @@ app.post(`/${process.env.ADDPOST}/`, (req, res, nxt) => {
               console.error('Send Grid:', mes)
               console.log(`Send Grid Response: ${sgres}`)
               let epkg = {
-                Email: email, Name: name, Message: mes, Type: type, EDate: edate
+                Email: email, Name: name, Message: mes, Type: type, EDate: today
               }
               queries.addErr(epkg).then(data => {
                 console.log('err added to db')
