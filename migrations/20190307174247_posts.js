@@ -7,10 +7,10 @@ exports.up = function (knex, Promise) {
         post.text("Category")
         post.text("Slug")
         post.text("PDate")
-    });
+    })
 
 };
 
 exports.down = function (knex, Promise) {
     return knex.schema.dropTableIfExists("posts")
-};
+}

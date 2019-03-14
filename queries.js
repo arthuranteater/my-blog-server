@@ -4,19 +4,37 @@ let knex = require('knex')(connection)
 
 module.exports = {
     listSubs() {
-        return knex("subscribers");
+        return knex("subscribers")
     },
     listPosts() {
-        return knex("posts");
+        return knex("posts")
     },
-    getByCat(cat) {
+    listErrs() {
+        return knex("sg-errors")
+    },
+    getErrsByEmail(email) {
+        return knex
+            .select()
+            .from("sg-errors")
+            .where('Email', email)
+    },
+    addErr(err) {
+        return knex("sg-errors").insert(err, ["Message", "Type", "EDate", "Email", "Name"])
+    },
+    getSubsByCat(cat) {
         return knex
             .select()
             .from("subscribers")
             .where('Categories', 'like', `%${cat}%`)
     },
+    findSub(email) {
+        return knex
+            .select()
+            .from("subscribers")
+            .where("Email", email)
+    },
     addSub(sub) {
-        return knex("subscribers").insert(sub, ["Name", "Email", "Categories", "Passcode"]);
+        return knex("subscribers").insert(sub, ["Name", "Email", "Categories", "Passcode"])
     },
     addPost(post) {
         return knex("posts").insert(post, ["Title", "Subtitle", "Category", "Slug", "PDate"])
