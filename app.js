@@ -27,10 +27,11 @@ app.listen(port, (req, res) => {
 
 //today's date
 
-let today = new Date
+let today
 
 const getDate = () => {
-  let dd = today.getDate();
+  today = new Date
+  let dd = today.getDate()
   let mm = today.getMonth() + 1
   const yyyy = today.getFullYear()
   if (dd < 10) {
@@ -122,7 +123,7 @@ app.post(`/${process.env.WELCOME}/`, (req, res, next) => {
     },
     from: {
       name: 'arthuranteater',
-      email: 'no-reply@huntcodes.com'
+      email: 'no-reply@huntcodes.co'
     },
     subject: `Thanks for subscribing, ${name}`,
     text: 'Welcome to arthuranteater!',
@@ -203,11 +204,11 @@ app.post(`/${process.env.DELSUB}/`, (req, res, next) => {
         },
         from: {
           name: 'arthuranteater',
-          email: 'no-reply@huntcodes.com'
+          email: 'no-reply@huntcodes.co'
         },
         subject: `You've been unsubscribed, ${name}`,
         text: 'Unsubscribe notice',
-        html: `<h2>You've been unsubscribed from arthuranteater, ${name}</h2><h3><strong>If this was a mistake please click the link below to re-subscribe.</strong></h3>
+        html: `<h2>${email} has been removed from the arthuranteater mailing list.</h2><h3><strong>If this was a mistake please click the link below to re-subscribe.</strong></h3>
     <div><a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a><span> | </span><a href="https://arthuranteater.com/subscribe" target="_blank">Subscribe</a></div>
    `,
       }
@@ -250,7 +251,7 @@ app.post(`/${process.env.ADDPOST}/`, (req, res, nxt) => {
   let subTitle = post.SubTitle
   let slug = post.Slug
   queries.findPost(date).then(data => {
-    console.log('npost received')
+    console.log('post received')
     if (data.length == 0) {
       console.log(`adding ${title}`)
       queries.addPost(post).then(data => {

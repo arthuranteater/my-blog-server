@@ -26,6 +26,7 @@ module.exports = {
             .select()
             .from("subscribers")
             .where('Categories', 'like', `%${cat}%`)
+            .orWhere('Categories', 'like', '%All%')
     },
     findSub(email) {
         return knex
