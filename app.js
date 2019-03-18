@@ -47,7 +47,7 @@ const getDate = () => {
 
 app.get(`/${process.env.ALLSUB}/`, (req, res) => {
   res.status(200)
-  console.log('all subs req')
+  console.log('received all subs req')
   queries.listSubs().then(data => {
     res.json({ data })
     console.log('sent all subs')
@@ -58,7 +58,7 @@ app.get(`/${process.env.ALLSUB}/`, (req, res) => {
 
 app.get(`/${process.env.GETSUB}/:id`, (req, res) => {
   res.status(200)
-  console.log('subs by cat req')
+  console.log('received subs by cat req')
   queries.getByCat(req.params.id).then(data => {
     res.json({ data })
     console.log('sent subs by cat')
@@ -69,7 +69,7 @@ app.get(`/${process.env.GETSUB}/:id`, (req, res) => {
 
 app.get(`/${process.env.ALLPOST}/`, (req, res) => {
   res.status(200)
-  console.log('all posts req')
+  console.log('received all posts req')
   queries.listPosts().then(data => {
     res.json({ data })
     console.log('sent all posts')
@@ -80,7 +80,7 @@ app.get(`/${process.env.ALLPOST}/`, (req, res) => {
 
 app.get(`/${process.env.ALLERR}/`, (req, res) => {
   res.status(200)
-  console.log('all errs req')
+  console.log('received all errs req')
   queries.listErrs().then(data => {
     res.json({ data })
     console.log('sent all errs')
@@ -91,7 +91,7 @@ app.get(`/${process.env.ALLERR}/`, (req, res) => {
 
 app.get(`/${process.env.GETERRS}/:id`, (req, res) => {
   res.status(200)
-  console.log('errs by email req')
+  console.log('received errs by email req')
   let email = req.params.id
   queries.getErrsByEmail(email).then(data => {
     res.json({ data })
@@ -104,18 +104,14 @@ app.get(`/${process.env.GETERRS}/:id`, (req, res) => {
 
 app.post(`/${process.env.WELCOME}/`, (req, res, next) => {
   res.status(200)
-  console.log('welcome email req')
+  console.log('received welcome email req')
   getDate()
   let type = 'welcome'
-  let body = req.body
-  let post = req.body.post
-  let title = post.title
-  let subTitle = post.subTitle
-  let slug = post.slug
-  let name = body.Name
-  let pass = body.Passcode
-  let cats = body.Categories
-  let email = body.Email
+  let sub = req.body
+  let name = sub.Name
+  let pass = sub.Passcode
+  let cats = sub.Categories
+  let email = sub.Email
   const welcome = {
     to: {
       name: name,
@@ -128,10 +124,10 @@ app.post(`/${process.env.WELCOME}/`, (req, res, next) => {
     subject: `Thanks for subscribing, ${name}`,
     text: 'Welcome to arthuranteater!',
     html: `<h2>Welcome to arthuranteater, ${name}!</h2><h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
-    <p><strong>You are set up to receive alerts for the catergories: ${cats}. If our emails go to spam, try adding us to your contacts.</strong></p>
-    <h3><a href=http://localhost:8000${slug}>${title}</a></h3><h4>${subTitle}</h4>
-    <div><a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a><span> | </span><a href="https://arthuranteater.com/unsubscribe" target="_blank">Unsubscribe</a></div>
-    <h4>Subscriber ID: ${pass}</h4>`,
+    <p><strong>You have selected to receive alerts for the catergories: ${cats}. If our email went into to spam, please mark it as not spam and add us to your contacts.</strong></p>
+    <p><strong>Complete the subscription process by copying the Subscriber ID below and pasting onto the subscribe page.</strong></p>
+    <h2><strong>Subscriber ID: ${pass}</strong></h2>
+    <div><a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a><span></div>`,
   }
   sgMail.send(welcome, (err, sgres) => {
     if (err) {
@@ -150,7 +146,7 @@ app.post(`/${process.env.WELCOME}/`, (req, res, next) => {
     }
     else {
       res.json({ Response: `Email sent to ${email}` })
-      console.log(`sent welcome email ${email}`)
+      console.log(`sent welcome email to ${email}`)
     }
   })
 })
@@ -159,7 +155,7 @@ app.post(`/${process.env.WELCOME}/`, (req, res, next) => {
 
 app.post(`/${process.env.ADDSUB}/`, (req, res, next) => {
   res.status(200)
-  console.log('add subscriber req')
+  console.log('received add subscriber req')
   let sub = req.body
   let email = sub.Email
   queries.findSub(email).then(data => {
@@ -185,7 +181,7 @@ app.post(`/${process.env.ADDSUB}/`, (req, res, next) => {
 
 app.post(`/${process.env.DELSUB}/`, (req, res, next) => {
   res.status(200)
-  console.log('body', req.body)
+  console.log('received delete sub req')
   getDate()
   let type = 'unsubscribe'
   let email = req.body.Email
@@ -241,7 +237,7 @@ app.post(`/${process.env.DELSUB}/`, (req, res, next) => {
 
 app.post(`/${process.env.ADDPOST}/`, (req, res, nxt) => {
   res.status(200)
-  console.log('new post req')
+  console.log('received new post req')
   getDate()
   let type = 'post'
   let post = req.body
@@ -288,7 +284,7 @@ app.post(`/${process.env.ADDPOST}/`, (req, res, nxt) => {
               })
             }
             else {
-              console.log(`sent npost to ${post.to}`)
+              console.log(`sent new post to ${post.to}`)
             }
           })
         }).catch(err => {
