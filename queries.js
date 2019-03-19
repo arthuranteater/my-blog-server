@@ -1,4 +1,4 @@
-let connection = require('./knexfile')[process.env.DATABASE_URL || 'development']
+let connection = require('./knexfile')[process.env.NODE_ENV || 'development']
 let knex = require('knex')(connection)
 
 
