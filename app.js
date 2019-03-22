@@ -31,6 +31,12 @@ app.listen(port, (req, res) => {
 
 // var imageAsBase64 = fs.readFileSync('./your-image.png', 'base64')
 
+// fs.readFileSync(path[, options])
+
+// Synchronous version of fs.readFile(). Returns the contents of the path.
+
+// If the encoding option is specified then this function returns a string. Otherwise it returns a buffer.
+
 //logo src
 
 const logo = {
@@ -136,7 +142,7 @@ app.post(`/${process.env.WELCOME}/`, (req, res, next) => {
     subject: `Welcome to arthuranteater, ${name}`,
     text: 'Welcome to arthuranteater!',
     html: `<img src="cid:logo" width="80" height="80"><h2>Welcome to arthuranteater, ${name}!</h2><h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
-    <p><strong>You have selected to receive alerts for the catergories: ${cats}. If our email went into to spam, please mark it as not spam and add us to your contacts.</strong></p>
+    <p><strong>You have selected to receive alerts for the categories: ${cats}. If our email went into to spam, please mark it as not spam and add us to your contacts.</strong></p>
     <p><strong>Copy the Subscriber ID and paste into Step 2 on the subscribe page.</strong></p>
     <h2><strong>Subscriber ID: ${pass}</strong></h2>
     <div><a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a><span></div>`,
@@ -225,9 +231,18 @@ app.post(`/${process.env.DELSUB}/`, (req, res, next) => {
         },
         subject: `You've been unsubscribed, ${name}`,
         text: 'Unsubscribe notice',
-        html: `<img src="data:image/png;base64,"+${logo.key} alt="logo" height="20" width="20"><h2>${email} has been removed from the arthuranteater mailing list.</h2><h3><strong>If this was a mistake, please click the link below to re-subscribe.</strong></h3>
+        html: `<img src="cid:logo" width="80" height="80"><h2>${email} has been removed from the arthuranteater mailing list.</h2><h3><strong>If this was a mistake, please click the link below to re-subscribe.</strong></h3>
     <div><a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a><span> | </span><a href="https://arthuranteater.com/subscribe" target="_blank">Subscribe</a></div>
    `,
+        attachments: [
+          {
+            content: logo.base64,
+            filename: 'logo.png',
+            type: 'image/png',
+            disposition: 'inline',
+            content_id: 'logo'
+          },
+        ]
       }
       sgMail.send(unsubscribe, (err, res) => {
         if (err) {
