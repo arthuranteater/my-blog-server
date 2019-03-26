@@ -66,6 +66,15 @@ const limiter = rateLimit({
   }
 })
 
+const plimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  max: 1,
+  handler: function (req, res, nxt) {
+    res.status(200).json({ Response: 'No access, too many requests, please try again later' })
+    console.log('hit req limit')
+  }
+})
+
 //local server
 
 app.listen(port, (req, res) => {
@@ -111,7 +120,6 @@ const getDate = () => {
 //all subs
 
 app.get(`/${process.env.ALLSUB}/`, limiter, (req, res) => {
-  res.status(200)
   console.log('received all subs req')
   queries.listSubs().then(data => {
     res.json({ data })
@@ -122,7 +130,6 @@ app.get(`/${process.env.ALLSUB}/`, limiter, (req, res) => {
 //subs by cat
 
 app.get(`/${process.env.GETSUB}/:id`, limiter, (req, res) => {
-  res.status(200)
   console.log('received subs by cat req')
   queries.getByCat(req.params.id).then(data => {
     res.json({ data })
@@ -133,7 +140,6 @@ app.get(`/${process.env.GETSUB}/:id`, limiter, (req, res) => {
 //all posts
 
 app.get(`/${process.env.ALLPOST}/`, limiter, (req, res) => {
-  res.status(200)
   console.log('received all posts req')
   queries.listPosts().then(data => {
     res.json({ data })
@@ -144,7 +150,6 @@ app.get(`/${process.env.ALLPOST}/`, limiter, (req, res) => {
 //all errs
 
 app.get(`/${process.env.ALLERR}/`, limiter, (req, res) => {
-  res.status(200)
   console.log('received all errs req')
   queries.listErrs().then(data => {
     res.json({ data })
@@ -155,7 +160,6 @@ app.get(`/${process.env.ALLERR}/`, limiter, (req, res) => {
 //errs by email
 
 app.get(`/${process.env.GETERRS}/:id`, limiter, (req, res) => {
-  res.status(200)
   console.log('received errs by email req')
   let email = req.params.id
   queries.getErrsByEmail(email).then(data => {
@@ -253,7 +257,6 @@ app.post(`/${process.env.ADDSUB}/`, limiter, (req, res, next) => {
 //delete sub
 
 app.post(`/${process.env.DELSUB}/`, limiter, (req, res, next) => {
-  res.status(200)
   console.log('received delete sub req')
   getDate()
   let type = 'unsubscribe'
@@ -317,8 +320,7 @@ app.post(`/${process.env.DELSUB}/`, limiter, (req, res, next) => {
 
 //new post
 
-app.post(`/${process.env.ADDPOST}/`, limiter, (req, res, nxt) => {
-  res.status(200)
+app.post(`/${process.env.ADDPOST}/`, plimiter, (req, res, nxt) => {
   console.log('received new post req')
   getDate()
   let type = 'post'
