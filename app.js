@@ -1,24 +1,32 @@
-// using SendGrid's v3 Node.js Library
-// https://github.com/sendgrid/sendgrid-nodejs
-const sgMail = require('@sendgrid/mail');
-const express = require("express");
-const bodyParser = require("body-parser");
-const cors = require("cors");
-const app = express();
+const sgMail = require('@sendgrid/mail')
+const express = require("express")
+const bodyParser = require("body-parser")
+const cors = require("cors")
+const app = express()
 const dotenv = require('dotenv')
-const port = process.env.PORT || 4000;
+const rateLimit = require("express-rate-limit")
+const port = process.env.PORT || 5000
 const queries = require("./queries")
 
 dotenv.config()
 sgMail.setApiKey(process.env.SGKEY)
+
 app.use(bodyParser.json())
 app.use(cors())
-app.use(function (err, req, res, next) {
-  if (err) {
-    console.log('err', err.message)
-    res.status(404).json({ Response: err.message })
+
+//limiter
+
+app.enable("trust proxy")
+
+const limiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 4,
+  handler: function (req, res, nxt) {
+    res.status(200).json({ Response: 'Too many requests, try again later' })
+    console.log('hit req limit')
   }
 })
+
 
 
 app.listen(port, (req, res) => {
@@ -120,8 +128,7 @@ app.get(`/${process.env.GETERRS}/:id`, (req, res) => {
 
 //welcome email
 
-app.post(`/${process.env.WELCOME}/`, (req, res, next) => {
-  res.status(200)
+app.post(`/${process.env.WELCOME}/`, limiter, (req, res, next) => {
   console.log('received welcome email req')
   getDate()
   let type = 'welcome'
@@ -180,7 +187,7 @@ app.post(`/${process.env.WELCOME}/`, (req, res, next) => {
 
 //add sub
 
-app.post(`/${process.env.ADDSUB}/`, (req, res, next) => {
+app.post(`/${process.env.ADDSUB}/`, limiter, (req, res, next) => {
   res.status(200)
   console.log('received add subscriber req')
   let sub = req.body
@@ -206,7 +213,7 @@ app.post(`/${process.env.ADDSUB}/`, (req, res, next) => {
 
 //delete sub
 
-app.post(`/${process.env.DELSUB}/`, (req, res, next) => {
+app.post(`/${process.env.DELSUB}/`, limiter, (req, res, next) => {
   res.status(200)
   console.log('received delete sub req')
   getDate()
