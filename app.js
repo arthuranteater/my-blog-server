@@ -16,7 +16,7 @@ app.use(bodyParser.json())
 
 //cors options
 
-var whitelist = ['http://localhost:8000', 'http://arthuranteater.com']
+var whitelist = ['http://localhost:8000', 'https://arthuranteater.com']
 var siteCors = {
   allowedHeaders: ['Content-Type', 'Authorization'],
   origin: function (origin, callback) {
