@@ -17,7 +17,7 @@ app.use(bodyParser.json())
 //cors options
 
 var whitelist = ['http://localhost:8000', 'http://arthuranteater.com']
-var corsOptions = {
+var siteCors = {
   allowedHeaders: ['Content-Type', 'Authorization'],
   origin: function (origin, callback) {
     if (whitelist.indexOf(origin) !== -1) {
@@ -32,10 +32,20 @@ var corsOptions = {
   credentials: true
 }
 
+var adminCors = {
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200,
+  preflightContinue: true,
+  credentials: true
+}
+
 //enabling cors
 
-app.options('*', cors(corsOptions))
-app.use(cors(corsOptions))
+app.options('/site/*', cors(siteCors))
+app.use('/site/*', cors(siteCors))
+
+app.options('/', cors(adminCors))
+app.use('/', cors(adminCors))
 
 //auth token
 
@@ -45,7 +55,7 @@ app.use(function (req, res, nxt) {
     if (req.token === process.env.SECRET) {
       nxt()
     } else {
-      res.status(200).json({ Response: 'No access' })
+      res.status(200).json({ Response: 'No access, no match' })
     }
   } else {
     res.status(200).json({ Response: 'No access' })
@@ -171,7 +181,7 @@ app.get(`/${process.env.GETERRS}/:id`, limiter, (req, res) => {
 
 //welcome email
 
-app.post(`/${process.env.WELCOME}/`, limiter, (req, res, next) => {
+app.post(`/site/${process.env.WELCOME}/`, limiter, (req, res, next) => {
   console.log('received welcome email req')
   getDate()
   let type = 'welcome'
@@ -230,7 +240,7 @@ app.post(`/${process.env.WELCOME}/`, limiter, (req, res, next) => {
 
 //add sub
 
-app.post(`/${process.env.ADDSUB}/`, limiter, (req, res, next) => {
+app.post(`/site/${process.env.ADDSUB}/`, limiter, (req, res, next) => {
   res.status(200)
   console.log('received add subscriber req')
   let sub = req.body
@@ -256,7 +266,7 @@ app.post(`/${process.env.ADDSUB}/`, limiter, (req, res, next) => {
 
 //delete sub
 
-app.post(`/${process.env.DELSUB}/`, limiter, (req, res, next) => {
+app.post(`/site/${process.env.DELSUB}/`, limiter, (req, res, next) => {
   console.log('received delete sub req')
   getDate()
   let type = 'unsubscribe'
