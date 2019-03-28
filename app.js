@@ -6,6 +6,7 @@ const app = express()
 const dotenv = require('dotenv')
 const rateLimit = require("express-rate-limit")
 const bearerToken = require('express-bearer-token')
+const CryptoJS = require("crypto-js")
 const port = process.env.PORT || 4000
 const queries = require("./queries")
 
@@ -60,7 +61,10 @@ createPass = () => {
   for (let i = 0; i < 10; i++) {
     pass += val.charAt(Math.floor(Math.random() * val.length))
   }
-  store.push(pass)
+  const hash = CryptoJS.HmacSHA256(pass, process.env.SECRET)
+  const hashInBase64 = CryptoJS.enc.Base64.stringify(hash)
+  console.log('base64', hashInBase64)
+  store.push(hashInBase64)
 }
 
 //auth tokens
@@ -74,10 +78,10 @@ siteToken = function (req, res, nxt) {
       nxt()
       console.log('store', store)
     } else {
-      res.status(200).json({ Response: 'Please get new ID, change the name field, click Get ID' })
+      res.status(200).json({ Response: "Invalid ID, please try again" })
     }
   } else {
-    res.status(200).json({ Response: 'No access' })
+    res.status(200).json({ Response: "No ID, please try again" })
   }
 }
 
@@ -263,7 +267,7 @@ app.post(`/site/${process.env.WELCOME}/`, limiter, (req, res) => {
       })
     }
     else {
-      res.json({ Response: email, Passcode: pass })
+      res.json({ Response: email })
       console.log(`sent welcome email to ${email}`)
     }
   })
@@ -303,7 +307,7 @@ app.post(`/site/${process.env.BYE}/`, limiter, (req, res) => {
   createPass()
   let type = 'bye'
   let sub = req.body
-  let email = sub.Email
+  let email = sub.email
   const bye = {
     to: {
       email: email,
@@ -336,7 +340,7 @@ app.post(`/site/${process.env.BYE}/`, limiter, (req, res) => {
       console.error('Send Grid Error:', mes)
       console.log(`Send Grid Response: ${sgres}`)
       let epkg = {
-        Email: email, Name: name, Message: mes, Type: type, EDate: today
+        Email: email, Message: mes, Type: type, EDate: today
       }
       queries.addErr(epkg).then(data => {
         console.log('error added to log')
@@ -345,7 +349,7 @@ app.post(`/site/${process.env.BYE}/`, limiter, (req, res) => {
       })
     }
     else {
-      res.json({ Response: email, Passcode: pass })
+      res.json({ Response: email })
       console.log(`sent bye email to ${email}`)
     }
   })
