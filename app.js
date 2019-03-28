@@ -9,6 +9,8 @@ const bearerToken = require('express-bearer-token')
 const port = process.env.PORT || 4000
 const queries = require("./queries")
 
+
+
 dotenv.config()
 sgMail.setApiKey(process.env.SGKEY)
 
@@ -47,20 +49,49 @@ app.use('/site/*', cors(siteCors))
 app.options('/', cors(adminCors))
 app.use('/', cors(adminCors))
 
-//auth token
+//passcode
 
-app.use(bearerToken());
-app.use(function (req, res, nxt) {
+let store = []
+let pass = ''
+
+createPass = () => {
+  pass = ''
+  var val = process.env.VALUES
+  for (let i = 0; i < 10; i++) {
+    pass += val.charAt(Math.floor(Math.random() * val.length))
+  }
+  store.push(pass)
+}
+
+//auth tokens
+
+app.use(bearerToken())
+
+siteToken = function (req, res, nxt) {
   if (req.token) {
-    if (req.token === process.env.SECRET) {
+    if (store.includes(req.token)) {
+      store = store.filter(e => e !== req.token)
       nxt()
+      console.log('store', store)
     } else {
-      res.status(200).json({ Response: 'No access, no match' })
+      res.status(200).json({ Response: 'Please get new ID, change the name field, click Get ID' })
     }
   } else {
     res.status(200).json({ Response: 'No access' })
   }
-});
+}
+
+adToken = function (req, res, nxt) {
+  if (req.token) {
+    if (req.token === process.env.SECRET) {
+      nxt()
+    } else {
+      res.status(200).json({ Response: 'No access' })
+    }
+  } else {
+    res.status(200).json({ Response: 'No access' })
+  }
+}
 
 
 //rate limiter
@@ -129,7 +160,7 @@ const getDate = () => {
 
 //all subs
 
-app.get(`/${process.env.ALLSUB}/`, limiter, (req, res) => {
+app.get(`/${process.env.ALLSUB}/`, adToken, limiter, (req, res) => {
   console.log('received all subs req')
   queries.listSubs().then(data => {
     res.json({ data })
@@ -139,7 +170,7 @@ app.get(`/${process.env.ALLSUB}/`, limiter, (req, res) => {
 
 //subs by cat
 
-app.get(`/${process.env.GETSUB}/:id`, limiter, (req, res) => {
+app.get(`/${process.env.GETSUB}/:id`, adToken, limiter, (req, res) => {
   console.log('received subs by cat req')
   queries.getByCat(req.params.id).then(data => {
     res.json({ data })
@@ -149,7 +180,7 @@ app.get(`/${process.env.GETSUB}/:id`, limiter, (req, res) => {
 
 //all posts
 
-app.get(`/${process.env.ALLPOST}/`, limiter, (req, res) => {
+app.get(`/${process.env.ALLPOST}/`, adToken, limiter, (req, res) => {
   console.log('received all posts req')
   queries.listPosts().then(data => {
     res.json({ data })
@@ -159,7 +190,7 @@ app.get(`/${process.env.ALLPOST}/`, limiter, (req, res) => {
 
 //all errs
 
-app.get(`/${process.env.ALLERR}/`, limiter, (req, res) => {
+app.get(`/${process.env.ALLERR}/`, adToken, limiter, (req, res) => {
   console.log('received all errs req')
   queries.listErrs().then(data => {
     res.json({ data })
@@ -169,7 +200,7 @@ app.get(`/${process.env.ALLERR}/`, limiter, (req, res) => {
 
 //errs by email
 
-app.get(`/${process.env.GETERRS}/:id`, limiter, (req, res) => {
+app.get(`/${process.env.GETERRS}/:id`, adToken, limiter, (req, res) => {
   console.log('received errs by email req')
   let email = req.params.id
   queries.getErrsByEmail(email).then(data => {
@@ -181,13 +212,13 @@ app.get(`/${process.env.GETERRS}/:id`, limiter, (req, res) => {
 
 //welcome email
 
-app.post(`/site/${process.env.WELCOME}/`, limiter, (req, res, next) => {
+app.post(`/site/${process.env.WELCOME}/`, limiter, (req, res) => {
   console.log('received welcome email req')
   getDate()
+  createPass()
   let type = 'welcome'
   let sub = req.body
   let name = sub.Name
-  let pass = sub.Passcode
   let cats = sub.Categories
   let email = sub.Email
   const welcome = {
@@ -232,7 +263,7 @@ app.post(`/site/${process.env.WELCOME}/`, limiter, (req, res, next) => {
       })
     }
     else {
-      res.json({ Response: email })
+      res.json({ Response: email, Passcode: pass })
       console.log(`sent welcome email to ${email}`)
     }
   })
@@ -240,7 +271,7 @@ app.post(`/site/${process.env.WELCOME}/`, limiter, (req, res, next) => {
 
 //add sub
 
-app.post(`/site/${process.env.ADDSUB}/`, limiter, (req, res, next) => {
+app.post(`/site/${process.env.ADDSUB}/`, siteToken, limiter, (req, res, next) => {
   res.status(200)
   console.log('received add subscriber req')
   let sub = req.body
@@ -264,63 +295,74 @@ app.post(`/site/${process.env.ADDSUB}/`, limiter, (req, res, next) => {
   })
 })
 
+//bye email
+
+app.post(`/site/${process.env.BYE}/`, limiter, (req, res) => {
+  console.log('received bye email req')
+  getDate()
+  createPass()
+  let type = 'bye'
+  let sub = req.body
+  let email = sub.Email
+  const bye = {
+    to: {
+      email: email,
+    },
+    from: {
+      name: 'arthuranteater',
+      email: 'no-reply@huntcodes.co'
+    },
+    subject: `To unsubscribe from arthuranteater...`,
+    text: 'To unsubscribe from arthuranteater...',
+    html: `<img src="cid:logo" width="80" height="80"><h2>arthuranteater</h2><h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
+    <p><strong>We have received a request to remove ${email} from our mailing list. If this was sent in error or by accident, please ignore this notice.</p>
+    <p><strong>Copy the unsubscribe ID and paste into Step 2 on the unsubscribe page.</strong></p>
+    <h2><strong>Unsubscribe ID: ${pass}</strong></h2>
+    <div><a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a><span></div>`,
+    attachments: [
+      {
+        content: logo.base64,
+        filename: 'logo.png',
+        type: 'image/png',
+        disposition: 'inline',
+        content_id: 'logo'
+      },
+    ]
+  }
+  sgMail.send(bye, (err, sgres) => {
+    if (err) {
+      let mes = err.toString()
+      res.json({ Response: `No email sent, ${mes}` })
+      console.error('Send Grid Error:', mes)
+      console.log(`Send Grid Response: ${sgres}`)
+      let epkg = {
+        Email: email, Name: name, Message: mes, Type: type, EDate: today
+      }
+      queries.addErr(epkg).then(data => {
+        console.log('error added to log')
+      }).catch(err => {
+        console.error('addErr err:', err)
+      })
+    }
+    else {
+      res.json({ Response: email, Passcode: pass })
+      console.log(`sent bye email to ${email}`)
+    }
+  })
+})
+
+
 //delete sub
 
-app.post(`/site/${process.env.DELSUB}/`, limiter, (req, res, next) => {
+app.post(`/site/${process.env.DELSUB}/`, siteToken, limiter, (req, res, next) => {
   console.log('received delete sub req')
-  getDate()
-  let type = 'unsubscribe'
-  let email = req.body.email
-  queries.delSub(email).then(data => {
+  queries.delSub(req.body.email).then(data => {
     if (data.length == 0) {
       console.error('No matches')
       res.json({ Response: 'No matches' })
     } else {
       res.json({ Response: 'success' })
       console.log('subscriber removed')
-      let name = data[0].Name
-      const unsubscribe = {
-        to: {
-          name: name,
-          email: email,
-        },
-        from: {
-          name: 'arthuranteater',
-          email: 'no-reply@huntcodes.co'
-        },
-        subject: `You've been unsubscribed, ${name}`,
-        text: 'Unsubscribe notice',
-        html: `<img src="cid:logo" width="80" height="80"><h2>${email} has been removed from the arthuranteater mailing list.</h2><h3><strong>If this was a mistake, please click the link below to re-subscribe.</strong></h3>
-    <div><a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a><span> | </span><a href="https://arthuranteater.com/subscribe" target="_blank">Subscribe</a></div>
-   `,
-        attachments: [
-          {
-            content: logo.base64,
-            filename: 'logo.png',
-            type: 'image/png',
-            disposition: 'inline',
-            content_id: 'logo'
-          },
-        ]
-      }
-      sgMail.send(unsubscribe, (err, res) => {
-        if (err) {
-          let mes = err.toString()
-          console.error('Send Grid:', mes)
-          console.log(`Send Grid Response: ${sgres}`)
-          let epkg = {
-            Email: email, Name: name, Message: mes, Type: type, EDate: today
-          }
-          queries.addErr(epkg).then(data => {
-            console.log('err added to db')
-          }).catch(err => {
-            console.error('addErr:', err)
-          })
-        }
-        else {
-          console.log(`sent unsubscribe email to ${email}`)
-        }
-      })
     }
   }).catch(err => {
     console.error('delSub:', err)
@@ -330,7 +372,7 @@ app.post(`/site/${process.env.DELSUB}/`, limiter, (req, res, next) => {
 
 //new post
 
-app.post(`/${process.env.ADDPOST}/`, plimiter, (req, res, nxt) => {
+app.post(`/${process.env.ADDPOST}/`, adToken, plimiter, (req, res, nxt) => {
   console.log('received new post req')
   getDate()
   let type = 'post'
