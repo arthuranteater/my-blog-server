@@ -10,10 +10,12 @@ const CryptoJS = require("crypto-js")
 const port = process.env.PORT || 4000
 const queries = require("./queries")
 
-
+//enable env
 
 dotenv.config()
 sgMail.setApiKey(process.env.SGKEY)
+
+//body parser
 
 app.use(bodyParser.json())
 
