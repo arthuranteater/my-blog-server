@@ -54,29 +54,95 @@ app.use('/', cors(adminCors))
 
 //passcode
 
-let store = []
-let pass = ''
 
-createPass = () => {
-  pass = ''
+let passStore = []
+let proxyStore = []
+let subStore = []
+let elist = []
+
+
+delHash = (hash, store) => {
+  console.log('delhashStorebefore', store)
+  store = store.filter(e => e !== hash)
+  console.log('delhashStoreafter', store)
+  console.log('store', store)
+}
+
+createHash = (word, store) => {
+  const hash = CryptoJS.HmacSHA256(word, process.env.SECRET)
+  const b64 = CryptoJS.enc.Base64.stringify(hash)
+  store.push(b64)
+  setTimeout(delHash, 3000000, b64, store)
+}
+
+encrypt = email => {
+  const cipher = CryptoJS.AES.encrypt(email, process.env.ESCRECT)
+  n64 = CryptoJS.enc.Base64.stringify(cipher)
+}
+
+addSubToStore = (sub, id) => {
+  n64 = ''
+  encrypt(sub.Email)
+  sub.Email = n64
+  sub.Passcode = id
+  subStore.push(sub)
+  setTimeout(delHash, 3000000, sub, subStore)
+  console.log('subStore', subStore)
+}
+
+decrypt = (n64, name) => {
+  const cipher = CryptoJS.enc.Base64.parse(n64)
+  const bytes = CryptoJS.AES.decrypt(cipher.toString(), process.env.ESCRECT)
+  const email = bytes.toString(CryptoJS.enc.Utf8)
+  elist.push(`${name} <${email}>`)
+}
+
+
+//promise for passcode
+
+const createPass = new Promise(resolve => {
+  let pass = ''
   var val = process.env.VALUES
   for (let i = 0; i < 10; i++) {
     pass += val.charAt(Math.floor(Math.random() * val.length))
   }
-  const hash = CryptoJS.HmacSHA256(pass, process.env.SECRET)
-  const hashInBase64 = CryptoJS.enc.Base64.stringify(hash)
-  console.log('base64', hashInBase64)
-  store.push(hashInBase64)
+  resolve(pass)
+})
+
+//promise for subStore
+
+const findSubInStore = id => {
+  return new Promise(resolve => {
+    const subArr = subStore.filter(e => e.Passcode == id)
+    fsub = subArr[0]
+    resolve(fsub)
+  })
 }
 
-//auth tokens
+
+//auth token
 
 app.use(bearerToken())
 
-siteToken = function (req, res, nxt) {
+proxyToken = function (req, res, nxt) {
   if (req.token) {
-    if (store.includes(req.token)) {
-      store = store.filter(e => e !== req.token)
+    createHash(req.body.Email, proxyStore)
+    if (proxyStore.includes(req.token)) {
+      delHash(req.token, proxyStore)
+      nxt()
+      console.log('store', proxyStore)
+    } else {
+      res.status(200).json({ Response: "Invalid ID, please try again" })
+    }
+  } else {
+    res.status(200).json({ Response: "No ID, please try again" })
+  }
+}
+
+passToken = function (req, res, nxt) {
+  if (req.token) {
+    if (passStore.includes(req.token)) {
+      delHash(req.token, passStore)
       nxt()
       console.log('store', store)
     } else {
@@ -218,161 +284,178 @@ app.get(`/${process.env.GETERRS}/:id`, adToken, limiter, (req, res) => {
 
 //welcome email
 
-app.post(`/site/${process.env.WELCOME}/`, limiter, (req, res) => {
+app.post(`/site/${process.env.WELCOME}/`, proxyToken, limiter, (req, res) => {
   console.log('received welcome email req')
   getDate()
-  createPass()
-  let type = 'welcome'
-  let sub = req.body
-  let name = sub.Name
-  let cats = sub.Categories
-  let email = sub.Email
-  const welcome = {
-    to: {
-      name: name,
-      email: email,
-    },
-    from: {
-      name: 'arthuranteater',
-      email: 'no-reply@huntcodes.co'
-    },
-    subject: `Welcome to arthuranteater, ${name}`,
-    text: 'Welcome to arthuranteater!',
-    html: `<img src="cid:logo" width="80" height="80"><h2>Welcome to arthuranteater, ${name}!</h2><h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
-    <p><strong>You have selected to receive alerts for the categories: ${cats}. If our email went into to spam, please mark it as not spam and add us to your contacts.</strong></p>
+  createPass.then(pass => {
+    const wsub = req.body
+    createHash(pass, passStore)
+    addSubToStore(wsub, pass)
+    const type = 'welcome'
+    const name = wsub.Name
+    const welcome = {
+      to: {
+        name: name,
+        email: wsub.Email,
+      },
+      from: {
+        name: 'arthuranteater',
+        email: 'no-reply@huntcodes.co'
+      },
+      subject: `Welcome to arthuranteater, ${name}`,
+      text: 'Welcome to arthuranteater!',
+      html: `<img src="cid:logo" width="80" height="80"><h2>Welcome to arthuranteater, ${name}!</h2><h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
+    <p><strong>You have selected to receive alerts for the categories: ${cwsub.Categories}. If our email went into to spam, please mark it as not spam and add us to your contacts.</strong></p>
     <p><strong>Copy the Subscriber ID and paste into Step 2 on the subscribe page.</strong></p>
     <h2><strong>Subscriber ID: ${pass}</strong></h2>
     <div><a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a><span></div>`,
-    attachments: [
-      {
-        content: logo.base64,
-        filename: 'logo.png',
-        type: 'image/png',
-        disposition: 'inline',
-        content_id: 'logo'
-      },
-    ]
-  }
-  sgMail.send(welcome, (err, sgres) => {
-    if (err) {
-      let mes = err.toString()
-      res.json({ Response: `No email sent, ${mes}` })
-      console.error('Send Grid Error:', mes)
-      console.log(`Send Grid Response: ${sgres}`)
-      let epkg = {
-        Email: email, Name: name, Message: mes, Type: type, EDate: today
+      attachments: [
+        {
+          content: logo.base64,
+          filename: 'logo.png',
+          type: 'image/png',
+          disposition: 'inline',
+          content_id: 'logo'
+        },
+      ]
+    }
+    sgMail.send(welcome, (err, sgres) => {
+      if (err) {
+        const mes = err.toString()
+        res.json({ Response: `No email sent, ${mes}` })
+        console.error('Send Grid Error:', mes)
+        console.log(`Send Grid Response: ${sgres}`)
+        const epkg = {
+          Email: email, Name: name, Message: mes, Type: type, EDate: today
+        }
+        queries.addErr(epkg).then(() => {
+          console.log(`${epkg} added to log`)
+        }).catch(err => {
+          console.error('addErr err:', err)
+        })
       }
-      queries.addErr(epkg).then(data => {
-        console.log('error added to log')
-      }).catch(err => {
-        console.error('addErr err:', err)
-      })
-    }
-    else {
-      res.json({ Response: email })
-      console.log(`sent welcome email to ${email}`)
-    }
+      else {
+        res.json({ Response: email })
+        console.log(`sent welcome email to ${email}`)
+      }
+    })
+  }).catch(err => {
+    console.error('createPass:', err)
+    res.json({ Response: "Couldn't create pass" })
   })
 })
 
 //add sub
 
-app.post(`/site/${process.env.ADDSUB}/`, siteToken, limiter, (req, res, next) => {
-  res.status(200)
+app.post(`/site/${process.env.ADDSUB}/`, passToken, limiter, (req, res, next) => {
   console.log('received add subscriber req')
-  let sub = req.body
-  let email = sub.Email
-  queries.findSub(email).then(data => {
-    if (data.length == 0) {
-      queries.addSub(sub).then(data => {
-        res.json({ Response: 'success' })
-        console.log('subscriber added')
-      }).catch(err => {
-        res.json({ Response: 'Query error' })
-        console.error('Query Error:', err)
-      })
-    } else {
-      res.json({ Response: 'Email already added' })
-      console.log('email already added')
-    }
+  findSubInStore(req.body.Passcode).then(asub => {
+    queries.findSub(asub.Email).then(data => {
+      if (data.length == 0) {
+        queries.addSub(asub).then(data => {
+          res.json({ Response: 'success' })
+          console.log(`${asub.Name} added`)
+        }).catch(err => {
+          res.json({ Response: 'Query error' })
+          console.error('Query Error:', err)
+        })
+      } else {
+        res.json({ Response: 'Email already added' })
+        console.log('email already added')
+      }
+    }).catch(err => {
+      res.json({ Response: 'Query error' })
+      console.error('Query Error:', err)
+    })
   }).catch(err => {
-    res.json({ Response: 'Query error' })
-    console.error('Query Error:', err)
+    console.error('findSubInStore:', err)
+    res.json({ Response: 'No matches in store' })
   })
 })
 
 //bye email
 
-app.post(`/site/${process.env.BYE}/`, limiter, (req, res) => {
+app.post(`/site/${process.env.BYE}/`, proxyToken, limiter, (req, res) => {
   console.log('received bye email req')
   getDate()
-  createPass()
-  let type = 'bye'
-  let sub = req.body
-  let email = sub.email
-  const bye = {
-    to: {
-      email: email,
-    },
-    from: {
-      name: 'arthuranteater',
-      email: 'no-reply@huntcodes.co'
-    },
-    subject: `To unsubscribe from arthuranteater...`,
-    text: 'To unsubscribe from arthuranteater...',
-    html: `<img src="cid:logo" width="80" height="80"><h2>arthuranteater</h2><h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
+  createPass.then(pass => {
+    const bsub = req.body
+    createHash(pass, passStore)
+    addSubToStore(bsub, pass)
+    const type = 'bye'
+    const email = bsub.Email
+    const bye = {
+      to: {
+        email: email,
+      },
+      from: {
+        name: 'arthuranteater',
+        email: 'no-reply@huntcodes.co'
+      },
+      subject: `To unsubscribe from arthuranteater...`,
+      text: 'To unsubscribe from arthuranteater...',
+      html: `<img src="cid:logo" width="80" height="80"><h2>arthuranteater</h2><h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
     <p><strong>We have received a request to remove ${email} from our mailing list. If this was sent in error or by accident, please ignore this notice.</p>
     <p><strong>Copy the unsubscribe ID and paste into Step 2 on the unsubscribe page.</strong></p>
     <h2><strong>Unsubscribe ID: ${pass}</strong></h2>
     <div><a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a><span></div>`,
-    attachments: [
-      {
-        content: logo.base64,
-        filename: 'logo.png',
-        type: 'image/png',
-        disposition: 'inline',
-        content_id: 'logo'
-      },
-    ]
-  }
-  sgMail.send(bye, (err, sgres) => {
-    if (err) {
-      let mes = err.toString()
-      res.json({ Response: `No email sent, ${mes}` })
-      console.error('Send Grid Error:', mes)
-      console.log(`Send Grid Response: ${sgres}`)
-      let epkg = {
-        Email: email, Message: mes, Type: type, EDate: today
+      attachments: [
+        {
+          content: logo.base64,
+          filename: 'logo.png',
+          type: 'image/png',
+          disposition: 'inline',
+          content_id: 'logo'
+        },
+      ]
+    }
+    sgMail.send(bye, (err, sgres) => {
+      if (err) {
+        const mes = err.toString()
+        res.json({ Response: `No email sent, ${mes}` })
+        console.error('Send Grid Error:', mes)
+        console.log(`Send Grid Response: ${sgres}`)
+        const epkg = {
+          Email: email, Message: mes, Type: type, EDate: today
+        }
+        queries.addErr(epkg).then(() => {
+          console.log(`${pkg} error added to log`)
+        }).catch(err => {
+          console.error('addErr err:', err)
+        })
       }
-      queries.addErr(epkg).then(data => {
-        console.log('error added to log')
-      }).catch(err => {
-        console.error('addErr err:', err)
-      })
-    }
-    else {
-      res.json({ Response: email })
-      console.log(`sent bye email to ${email}`)
-    }
+      else {
+        res.json({ Response: email })
+        console.log(`sent bye email to ${email}`)
+      }
+    })
+  }).catch(err => {
+    console.error('createPass:', err)
+    res.json({ Response: "Couldn't create pass" })
   })
 })
 
 
 //delete sub
 
-app.post(`/site/${process.env.DELSUB}/`, siteToken, limiter, (req, res, next) => {
+app.post(`/site/${process.env.DELSUB}/`, passToken, limiter, (req, res, next) => {
   console.log('received delete sub req')
-  queries.delSub(req.body.email).then(data => {
-    if (data.length == 0) {
-      console.error('No matches')
-      res.json({ Response: 'No matches' })
-    } else {
-      res.json({ Response: 'success' })
-      console.log('subscriber removed')
-    }
+  findSubInStore(req.body.id).then(dsub => {
+    queries.delSub(dsub.Email).then(data => {
+      if (data.length == 0) {
+        console.error('No matches')
+        res.json({ Response: 'No matches in db' })
+      } else {
+        res.json({ Response: 'success' })
+        console.log('subscriber removed')
+      }
+    }).catch(err => {
+      console.error('delSub:', err)
+      res.json({ Response: 'Query error' })
+    })
   }).catch(err => {
-    console.error('delSub:', err)
-    res.json({ Response: 'Query error' })
+    console.error('findSubInStore:', err)
+    res.json({ Response: 'No matches in store' })
   })
 })
 
@@ -399,9 +482,9 @@ app.post(`/${process.env.ADDPOST}/`, adToken, plimiter, (req, res, nxt) => {
         // let subTitle = data[0].Subtitle
         // let slug = data[0].Slug
         queries.getSubsByCat(cat).then(data => {
-          let elist = []
-          data.map(sub => {
-            elist.push(`${sub.Name} <${sub.Email}>`)
+          elist = []
+          data.map(psub => {
+            decrypt(psub.Email, psub.Name)
           })
           const post = {
             to: elist,
