@@ -52,7 +52,7 @@ app.use('/site/*', cors(siteCors))
 app.options('/', cors(adminCors))
 app.use('/', cors(adminCors))
 
-//caching stores
+//caching in stores
 
 let passStore = []
 let proxyStore = []
@@ -67,7 +67,7 @@ createHash = (word, store) => {
   const hash = CryptoJS.HmacSHA256(word, process.env.SECRET)
   const b64 = CryptoJS.enc.Base64.stringify(hash)
   store.push(b64)
-  setTimeout(delHash, 480000, b64, store)
+  setTimeout(delHash, 600000, b64, store)
 }
 
 const encrypt = email => {
@@ -82,7 +82,7 @@ const addSubToStore = (sub, id) => {
     sub.Email = n64
     sub.Passcode = id
     subStore.push(sub)
-    setTimeout(delHash, 3000000, sub, subStore)
+    setTimeout(delHash, 600000, sub, subStore)
   })
 }
 
@@ -167,7 +167,7 @@ const adminToken = function (req, res, nxt) {
 app.enable("trust proxy")
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 10 * 60 * 1000,
   max: 3,
   handler: function (req, res, nxt) {
     res.status(200).json({ Response: 'No access, too many requests, please try again later' })
@@ -176,7 +176,7 @@ const limiter = rateLimit({
 })
 
 const plimiter = rateLimit({
-  windowMs: 24 * 60 * 60 * 1000,
+  windowMs: 10 * 60 * 1000,
   max: 1,
   handler: function (req, res, nxt) {
     res.status(200).json({ Response: 'No access, too many requests, please try again later' })
