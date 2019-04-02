@@ -302,7 +302,7 @@ app.post(`/site/${process.env.WELCOME}/`, proxyToken, limiter, (req, res) => {
       text: 'Welcome to arthuranteater!',
       html: `<img src="cid:logo" width="80" height="80"><h2>Welcome to arthuranteater, ${name}!</h2><h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
     <p><strong>You have selected to receive alerts for the categories: ${welSub.Categories}. If our email went into to spam, please mark it as not spam and add us to your contacts.</strong></p>
-    <p><strong>Copy the Subscriber ID and paste into Step 2 on the subscribe page.</strong></p>
+    <p><strong>Copy the Subscriber ID and paste into the <a href="https://arthuranteater.com/subscribe" target="_blank">subscribe page</a>.</strong></p>
     <h2><strong>Subscriber ID: ${pass}</strong></h2>
     <div><a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a><span></div>`,
       attachments: [
