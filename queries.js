@@ -46,11 +46,11 @@ module.exports = {
             .from("posts")
             .where("PDate", date)
     },
-    delSub(email) {
+    delSub(id) {
         return knex
             .select()
             .from("subscribers")
-            .where("Email", email)
+            .where("Passcode", id)
             .del()
             .returning("*");
     }
