@@ -52,86 +52,152 @@ app.use('/site/*', cors(siteCors))
 app.options('/', cors(adminCors))
 app.use('/', cors(adminCors))
 
-//caching in stores
+//caching stores
 
-let passStore = []
 let proxyStore = []
 let subStore = []
-let elist = []
 
-delHash = (hash, store) => {
-  store = store.filter(e => e !== hash)
+//store actions
+
+rmItem = (item, store) => {
+  store = store.filter(e => e !== item)
 }
 
-createHash = (word, store) => {
-  const hash = CryptoJS.HmacSHA256(word, process.env.SECRET)
-  const b64 = CryptoJS.enc.Base64.stringify(hash)
-  store.push(b64)
-  setTimeout(delHash, 600000, b64, store)
-}
+//proxyStore actions
 
-const encrypt = email => {
-  return new Promise(resolve => {
-    const cipher = CryptoJS.AES.encrypt(email, process.env.DB_ENCRYPT).toString()
-    resolve(cipher)
+
+const decryptKey = key => {
+  return new Promise((resolve) => {
+    let decrypt
+    const bytes = CryptoJS.AES.decrypt(key, process.env.SECRET)
+    decrypt = bytes.toString(CryptoJS.enc.Utf8)
+    if (decrypt) {
+      resolve(decrypt)
+    } else {
+      const reason = new Error(`Unable to decrypt ${key}`)
+      reject(reason)
+    }
   })
 }
 
-const addSubToStore = (sub, id) => {
+addHash = (word, salt) => {
+  return new Promise((resolve, reject) => {
+    let cached
+    const hash = CryptoJS.HmacSHA256(word, salt)
+    const b64 = CryptoJS.enc.Base64.stringify(hash)
+    proxyStore.push(b64)
+    setTimeout(rmItem, 600000, b64, proxyStore)
+    cached = b64
+    if (cached) {
+      resolve(cached)
+    } else {
+      const reason = new Error(`Unable to hash ${word}`)
+      reject(reason)
+    }
+  })
+}
+
+//subStore actions
+
+const createPass = () => {
   return new Promise(resolve => {
-    encrypt(sub.Email).then(n64 => {
+    let pass
+    var val = process.env.VALUES
+    for (let i = 0; i < 10; i++) {
+      pass += val.charAt(Math.floor(Math.random() * val.length))
+    }
+    if (pass) {
+      resolve(pass)
+    } else {
+      const reason = new Error(`Unable to create pass`)
+      reject(reason)
+    }
+  })
+}
+
+const addSubToStore = (sub, pass) => {
+  return new Promise((resolve, reject) => {
+    let cached
+    encryptEmail(sub.Email).then(n64 => {
       console.log('n64', n64)
       sub.Email = n64
-      sub.Passcode = id
+      sub.Passcode = pass
       subStore.push(sub)
       console.log('subStoreinadd', subStore)
       setTimeout(delHash, 600000, sub, subStore)
-      resolve(sub)
+      cached = sub
+    }).catch(err => {
+      console.error(`encrypt:`, err)
     })
+    if (cached) {
+      resolve(cached)
+    } else {
+      const reason = new Error(`Unable to add ${sub} to store`)
+      reject(reason)
+    }
   })
 }
-
-const decrypt = cipher => {
-  const bytes = CryptoJS.AES.decrypt(cipher, process.env.DB_ENCRYPT)
-  return bytes.toString(CryptoJS.enc.Utf8)
-}
-
-const addToElist = (cipher, name) => {
-  return new Promise(resolve => {
-    const bytes = CryptoJS.AES.decrypt(cipher, process.env.DB_ENCRYPT)
-    const email = bytes.toString(CryptoJS.enc.Utf8)
-    //elist.push(`${name} <${email}>`)
-    resolve(email)
-  })
-}
-
-//test decrypt
-
-// addToElist('U2FsdGVkX1+nDGEXZWjTulG8o2Q7fZJKqxXY6cur4SD7CP30lTM1livJu182iiGs').then(email => {
-//   console.log('email1', email)
-//   encrypt(email).then(n64 => {
-//     console.log('n64', n64)
-//     addToElist(n64).then(email => {
-//       console.log('email2', email)
-//     })
-//   })
-// })
-
-
-const createPass = new Promise(resolve => {
-  let pass = ''
-  var val = process.env.VALUES
-  for (let i = 0; i < 10; i++) {
-    pass += val.charAt(Math.floor(Math.random() * val.length))
-  }
-  resolve(pass)
-})
 
 const findSubInStore = id => {
+  return new Promise((resolve, reject) => {
+    let sub
+    sub = subStore.find(e => e.Passcode == id)
+    if (sub) {
+      resolve(sub)
+    } else {
+      const reason = new Error(`No matches for ${id}`)
+      reject(reason)
+    }
+  })
+}
+
+//db actions
+
+const encryptEmail = email => {
   return new Promise(resolve => {
-    const subArr = subStore.filter(e => e.Passcode == id)
-    const fsub = subArr[0]
-    resolve(fsub)
+    let encrypt
+    encrypt = CryptoJS.AES.encrypt(email, process.env.DB_ENCRYPT).toString()
+    if (encrypt) {
+      resolve(encrypt)
+    } else {
+      const reason = new Error(`Unable to encrypt ${email}`)
+      reject(reason)
+    }
+  })
+}
+
+const decryptEmail = email => {
+  return new Promise((resolve, reject) => {
+    let decrypt
+    const bytes = CryptoJS.AES.decrypt(email, process.env.DB_ENCRYPT)
+    decrypt = bytes.toString(CryptoJS.enc.Utf8)
+    if (decrypt) {
+      resolve(decrypt)
+    } else {
+      const reason = new Error(`Unable to decrypt ${email} to store`)
+      reject(reason)
+    }
+  })
+}
+
+//post actions
+
+const addToEmList = (subsArr) => {
+  return new Promise((resolve, reject) => {
+    emList = []
+    subsArr.map(sub => {
+      decryptEmail(sub.Email).then(em => {
+        emList.push(`${sub.Name} <${em}>`)
+      }).catch(err => {
+        console.error(`decryptEmail:`, err)
+      })
+    })
+    if (emList.length === subsArr.length) {
+      resolve(emList)
+    } else {
+      const reason = new Error(`Unable to add all ${subsArr}`)
+      reject(reason)
+    }
   })
 }
 
@@ -141,32 +207,29 @@ app.use(bearerToken())
 
 const proxyToken = function (req, res, nxt) {
   if (req.token) {
-    createHash(req.body.Email, proxyStore)
-    if (proxyStore.includes(req.token)) {
-      delHash(req.token, proxyStore)
-      nxt()
-    } else {
-      res.status(200).json({ Response: "No matching ID, please try again" })
-      console.error('no match in proxyStore:', proxyStore)
-    }
+    const token = req.token
+    const body = req.body
+    decryptKey(body.key).then(key => {
+      if ('Email' in body) {
+        addHash(body.Email, key)
+      } else {
+        addHash(body.id, key)
+      }
+    }).then(() => {
+      if (proxyStore.includes(token)) {
+        delHash(token, proxyStore)
+        nxt()
+      } else {
+        res.status(200).json({ Response: "No matching ID, please try again" })
+        console.error(`no match in proxyStore for ${token}`)
+      }
+    }).catch(err => {
+      res.json({ Response: "No access, decrypting error, please report the issue" })
+      console.error('decryptKey:', err)
+    })
   } else {
     res.status(200).json({ Response: "No access" })
     console.error('no proxy token found')
-  }
-}
-
-const passToken = function (req, res, nxt) {
-  if (req.token) {
-    if (passStore.includes(req.token)) {
-      delHash(req.token, passStore)
-      nxt()
-    } else {
-      res.status(200).json({ Response: "No matching ID, please try again" })
-      console.error('no match in passStore:', passStore, 'req.token', req.token)
-    }
-  } else {
-    res.status(200).json({ Response: "No access" })
-    console.error('no pass token found')
   }
 }
 
@@ -184,8 +247,7 @@ const adminToken = function (req, res, nxt) {
   }
 }
 
-
-//rate limiter
+//rate limiters
 
 app.enable("trust proxy")
 
@@ -213,7 +275,7 @@ app.listen(port, (req, res) => {
   console.log(`listening on ${port}`);
 })
 
-//base64 encoder
+//base64 img encoder
 
 // var fs = require('fs')
 
@@ -233,20 +295,18 @@ const logo = {
 
 //today's date
 
-let today
-
-const getDate = () => {
-  today = new Date
-  let dd = today.getDate()
-  let mm = today.getMonth() + 1
+const getDay = () => {
+  const day = new Date
+  let dd = day.getDate()
+  let mm = day.getMonth() + 1
   const yyyy = today.getFullYear()
   if (dd < 10) {
-    dd = '0' + dd;
+    dd = '0' + dd
   }
   if (mm < 10) {
-    mm = '0' + mm;
+    mm = '0' + mm
   }
-  today = yyyy + '-' + mm + '-' + dd
+  return yyyy + '-' + mm + '-' + dd
 }
 
 //all subs
@@ -304,9 +364,9 @@ app.get(`/${process.env.GETERRS}/:id`, adminToken, (req, res) => {
 
 app.post(`/site/${process.env.WELCOME}/`, proxyToken, limiter, (req, res) => {
   console.log('received welcome email req')
-  getDate()
+  const today = getDay()
   const welSub = req.body
-  createPass.then(pass => {
+  createPass().then(pass => {
     console.log('pass', pass)
     console.log('req.body', req.body)
     createHash(pass, passStore)
@@ -400,8 +460,8 @@ app.post(`/site/${process.env.ADDSUB}/`, passToken, limiter, (req, res, next) =>
 const findDbSub = (dbSubs, email) => {
   return new Promise((resolve, reject) => {
     const dbSub = dbSubs.find(dbSub => {
-      let decrypted = decrypt(dbSub.Email)
-      return email === decrypted
+      let decryptedEm = decryptEmail(dbSub.Email)
+      return email === decryptedEm
     })
     if (dbSub) {
       resolve(dbSub)
@@ -414,7 +474,7 @@ const findDbSub = (dbSubs, email) => {
 
 app.post(`/site/${process.env.BYE}/`, proxyToken, limiter, (req, res) => {
   console.log('received bye email req')
-  getDate()
+  const today = getDay()
   const email = req.body.Email
   queries.listSubs().then(dbSubs => {
     findDbSub(dbSubs, email).then(data => {
@@ -500,7 +560,7 @@ app.post(`/site/${process.env.DELSUB}/`, passToken, limiter, (req, res, next) =>
 
 app.post(`/${process.env.ADDPOST}/`, adminToken, plimiter, (req, res, nxt) => {
   console.log('received new post req')
-  getDate()
+  const today = getDay()
   const type = 'post'
   const post = req.body
   const title = post.Title
@@ -512,10 +572,7 @@ app.post(`/${process.env.ADDPOST}/`, adminToken, plimiter, (req, res, nxt) => {
       queries.addPost(post).then(() => {
         res.json({ Response: 'post received' })
         queries.getSubsByCat(cat).then(posSubs => {
-          elist = []
-          posSubs.map(posSub => {
-            addToElist(posSub.Email, posSub.Name)
-          })
+          addToEmList
           const postEm = {
             to: elist,
             from: 'arthuranteater <no-reply@huntcodes.co>',
