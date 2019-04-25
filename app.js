@@ -115,12 +115,10 @@ const addSubToStore = (sub, pass) => {
   return new Promise((resolve, reject) => {
     encryptEmail(sub.Email).then(n64 => {
       let added = false
-      console.log('n64', n64)
-      sub.Email = n64
-      sub.Passcode = pass
-      subStore.push(sub)
+      const subscriber = { Name: sub.Name, Email: n64, Categories: sub.Categories, Passcode: pass }
+      subStore.push(subscriber)
+      setTimeout(rmItem, 600000, subscriber, subStore)
       console.log('subStore', subStore)
-      setTimeout(rmItem, 600000, sub, subStore)
       added = true
       if (added) {
         resolve(added)
@@ -369,11 +367,9 @@ app.post(`/site/${process.env.WELCOME}/`, proxyToken, limiter, (req, res) => {
   const pass = createPass()
   console.log('pass', pass)
   addSubToStore(welSub, pass).then(() => {
-    console.log('subStore', subStore)
     const type = 'welcome'
     const nWel = new Welcome(welSub.Name, email, pass, welSub.Categories, logo.base64)
     const welPkg = nWel.create()
-    console.log('welPkg', welPkg)
     sgMail.send(welPkg, (err, sgres) => {
       if (err) {
         const mes = err.toString()
@@ -401,26 +397,40 @@ app.post(`/site/${process.env.WELCOME}/`, proxyToken, limiter, (req, res) => {
 
 app.post(`/site/${process.env.ADDSUB}/`, proxyToken, limiter, (req, res, next) => {
   console.log('received add subscriber req')
-  findSubInStore(req.body.id).then(addSub => {
-    queries.findSub(addSub.Email).then(data => {
-      if (data.length == 0) {
-        queries.addSub(addSub).then(() => {
-          res.json({ Response: 'success' })
-          console.log(`${addSub.Name} added`)
-        }).catch(err => {
-          res.json({ Response: 'Query error' })
-          console.error('Query Error:', err)
-        })
-      } else {
-        res.json({ Response: 'Email already added' })
-        console.log('email already added')
-      }
+  findSubInStore(req.body.id).then(stSub => {
+    console.log(`found email ${stSub.Email} with ID ${req.body.id} in store`)
+    queries.listSubs().then(dbSubs => {
+      console.log('returned all subs')
+      findDbSub(dbSubs, stSub.Email).then(data => {
+        if (typeof data !== 'undefined') {
+          encryptEmail(stSub.Email).then(em => {
+            stSub.Email = em
+            queries.addSub(stSub).then(() => {
+              console.log(`adding ${stSub} to db`)
+              res.json({ Response: 'success' })
+              console.log(`${stSub.Name} added`)
+            }).catch(err => {
+              res.json({ Response: 'Query error, please report issue' })
+              console.error('addSub:', err)
+            })
+          }).catch(err => {
+            res.json({ Response: `Encryption error: ${err}, please report issue` })
+            console.error('encryptEmail:', err)
+          })
+        } else {
+          res.json({ Response: `Email already added` })
+          console.log(`${stSub.email} email already added`)
+        }
+      }).catch(err => {
+        res.json({ Response: `Search error: ${err}` })
+        console.error('findDbSub:', err)
+      })
     }).catch(err => {
-      res.json({ Response: 'Query error' })
-      console.error('Query Error:', err)
+      res.json({ Response: `Query error: ${err}, please report issue` })
+      console.error('listSubs:', err)
     })
   }).catch(err => {
-    res.json({ Response: 'No matching ID, please try again' })
+    res.json({ Response: `Search error: ${err}` })
     console.error('findSubInStore:', err)
   })
 })
@@ -433,12 +443,13 @@ const findDbSub = (dbSubs, email) => {
       let decryptedEm = decryptEmail(dbSub.Email)
       return email === decryptedEm
     })
-    if (dbSub) {
-      resolve(dbSub)
-    } else {
-      const reason = new Error(`No matches for ${email}`)
-      reject(reason)
-    }
+    resolve(dbSub)
+    // if (dbSub) {
+    //   resolve(dbSub)
+    // } else {
+    //   const reason = new Error(`No matches for ${email}`)
+    //   reject(reason)
+    // }
   })
 }
 
