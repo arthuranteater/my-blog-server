@@ -1,8 +1,7 @@
-
 const Email = require('./Main')
 
 
-class Welcome extends Email {
+class Post extends Email {
     constructor(name, email, pass, cats, logo) {
         super(name, email, pass)
         this.cats = cats
@@ -37,5 +36,5 @@ class Welcome extends Email {
 
 
 
-module.exports = Welcome
+module.exports = Post
 

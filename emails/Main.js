@@ -10,7 +10,7 @@ class Email {
         }
     }
 
-    testEm() {
+    test() {
         console.log(this.name + ' makes a noise.')
     }
 
