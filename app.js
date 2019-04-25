@@ -9,6 +9,7 @@ const bearerToken = require('express-bearer-token')
 const CryptoJS = require("crypto-js")
 const port = process.env.PORT || 4000
 const queries = require("./queries")
+const Welcome = require('./emails/Welcome')
 
 //enable env
 
@@ -66,15 +67,16 @@ rmItem = (item, store) => {
 //proxyStore actions
 
 
-const decryptKey = key => {
-  return new Promise((resolve) => {
-    let decrypt
+const decryptSalt = key => {
+  return new Promise((resolve, reject) => {
+    let decryptSalt
     const bytes = CryptoJS.AES.decrypt(key, process.env.SECRET)
-    decrypt = bytes.toString(CryptoJS.enc.Utf8)
-    if (decrypt) {
-      resolve(decrypt)
+    decryptSalt = bytes.toString(CryptoJS.enc.Utf8)
+    console.log('salt decrypted', decryptSalt)
+    if (decryptSalt) {
+      resolve(decryptSalt)
     } else {
-      const reason = new Error(`Unable to decrypt ${key}`)
+      const reason = new Error(`Unable to decrypt key: ${key}`)
       reject(reason)
     }
   })
@@ -82,16 +84,17 @@ const decryptKey = key => {
 
 addHash = (word, salt) => {
   return new Promise((resolve, reject) => {
-    let cached
+    let cachedHash
     const hash = CryptoJS.HmacSHA256(word, salt)
     const b64 = CryptoJS.enc.Base64.stringify(hash)
     proxyStore.push(b64)
+    console.log()
     setTimeout(rmItem, 600000, b64, proxyStore)
-    cached = b64
-    if (cached) {
-      resolve(cached)
+    cachedHash = b64
+    if (cachedHash) {
+      resolve(cachedHash)
     } else {
-      const reason = new Error(`Unable to hash ${word}`)
+      const reason = new Error(`Unable to hash word: ${word} with salt: ${salt}`)
       reject(reason)
     }
   })
@@ -100,52 +103,45 @@ addHash = (word, salt) => {
 //subStore actions
 
 const createPass = () => {
-  return new Promise(resolve => {
-    let pass
-    var val = process.env.VALUES
-    for (let i = 0; i < 10; i++) {
-      pass += val.charAt(Math.floor(Math.random() * val.length))
-    }
-    if (pass) {
-      resolve(pass)
-    } else {
-      const reason = new Error(`Unable to create pass`)
-      reject(reason)
-    }
-  })
+  let pass = ''
+  var val = process.env.VALUES
+  for (let i = 0; i < 10; i++) {
+    pass += val.charAt(Math.floor(Math.random() * val.length))
+  }
+  return pass
 }
 
 const addSubToStore = (sub, pass) => {
   return new Promise((resolve, reject) => {
-    let cached
     encryptEmail(sub.Email).then(n64 => {
+      let added = false
       console.log('n64', n64)
       sub.Email = n64
       sub.Passcode = pass
       subStore.push(sub)
-      console.log('subStoreinadd', subStore)
-      setTimeout(delHash, 600000, sub, subStore)
-      cached = sub
+      console.log('subStore', subStore)
+      setTimeout(rmItem, 600000, sub, subStore)
+      added = true
+      if (added) {
+        resolve(added)
+      } else {
+        const reason = new Error(`Unable to add Sub: ${sub.Email} with Passcode: ${pass} to subStore`)
+        reject(reason)
+      }
     }).catch(err => {
       console.error(`encrypt:`, err)
     })
-    if (cached) {
-      resolve(cached)
-    } else {
-      const reason = new Error(`Unable to add ${sub} to store`)
-      reject(reason)
-    }
   })
 }
 
 const findSubInStore = id => {
   return new Promise((resolve, reject) => {
-    let sub
-    sub = subStore.find(e => e.Passcode == id)
-    if (sub) {
-      resolve(sub)
+    let fSub
+    fSub = subStore.find(e => e.Passcode == id)
+    if (fSub) {
+      resolve(fSub)
     } else {
-      const reason = new Error(`No matches for ${id}`)
+      const reason = new Error(`No matches for ID: ${id} in subStore`)
       reject(reason)
     }
   })
@@ -155,12 +151,12 @@ const findSubInStore = id => {
 
 const encryptEmail = email => {
   return new Promise(resolve => {
-    let encrypt
-    encrypt = CryptoJS.AES.encrypt(email, process.env.DB_ENCRYPT).toString()
-    if (encrypt) {
-      resolve(encrypt)
+    let encryptEm
+    encryptEm = CryptoJS.AES.encrypt(email, process.env.DB_ENCRYPT).toString()
+    if (encryptEm) {
+      resolve(encryptEm)
     } else {
-      const reason = new Error(`Unable to encrypt ${email}`)
+      const reason = new Error(`Unable to encrypt email: ${email}`)
       reject(reason)
     }
   })
@@ -168,13 +164,13 @@ const encryptEmail = email => {
 
 const decryptEmail = email => {
   return new Promise((resolve, reject) => {
-    let decrypt
+    let decryptEm
     const bytes = CryptoJS.AES.decrypt(email, process.env.DB_ENCRYPT)
-    decrypt = bytes.toString(CryptoJS.enc.Utf8)
-    if (decrypt) {
-      resolve(decrypt)
+    decryptEm = bytes.toString(CryptoJS.enc.Utf8)
+    if (decryptEm) {
+      resolve(decryptEm)
     } else {
-      const reason = new Error(`Unable to decrypt ${email} to store`)
+      const reason = new Error(`Unable to decrypt email: ${email}`)
       reject(reason)
     }
   })
@@ -187,15 +183,15 @@ const addToEmList = (subsArr) => {
     emList = []
     subsArr.map(sub => {
       decryptEmail(sub.Email).then(em => {
-        emList.push(`${sub.Name} <${em}>`)
+        emList.push(`${sub.Name} < ${em} > `)
       }).catch(err => {
-        console.error(`decryptEmail:`, err)
+        console.error(`decryptEmail: `, err)
       })
     })
     if (emList.length === subsArr.length) {
       resolve(emList)
     } else {
-      const reason = new Error(`Unable to add all ${subsArr}`)
+      const reason = new Error(`Unable to add Subs: ${subsArr} to emList`)
       reject(reason)
     }
   })
@@ -208,8 +204,10 @@ app.use(bearerToken())
 const proxyToken = function (req, res, nxt) {
   if (req.token) {
     const token = req.token
+    console.log('token', token)
     const body = req.body
-    decryptKey(body.key).then(key => {
+    console.log('body', body)
+    decryptSalt(body.key).then(key => {
       if ('Email' in body) {
         addHash(body.Email, key)
       } else {
@@ -217,10 +215,10 @@ const proxyToken = function (req, res, nxt) {
       }
     }).then(() => {
       if (proxyStore.includes(token)) {
-        delHash(token, proxyStore)
+        rmItem(token, proxyStore)
         nxt()
       } else {
-        res.status(200).json({ Response: "No matching ID, please try again" })
+        res.json({ Response: "No matching token, please try again" })
         console.error(`no match in proxyStore for ${token}`)
       }
     }).catch(err => {
@@ -272,7 +270,7 @@ const plimiter = rateLimit({
 //local server
 
 app.listen(port, (req, res) => {
-  console.log(`listening on ${port}`);
+  console.log(`listening on ${port} `);
 })
 
 //base64 img encoder
@@ -299,7 +297,7 @@ const getDay = () => {
   const day = new Date
   let dd = day.getDate()
   let mm = day.getMonth() + 1
-  const yyyy = today.getFullYear()
+  const yyyy = day.getFullYear()
   if (dd < 10) {
     dd = '0' + dd
   }
@@ -311,7 +309,7 @@ const getDay = () => {
 
 //all subs
 
-app.get(`/${process.env.ALLSUB}/`, adminToken, (req, res) => {
+app.get(`/ ${process.env.ALLSUB} /`, adminToken, (req, res) => {
   console.log('received all subs req')
   queries.listSubs().then(data => {
     res.json({ data })
@@ -364,43 +362,18 @@ app.get(`/${process.env.GETERRS}/:id`, adminToken, (req, res) => {
 
 app.post(`/site/${process.env.WELCOME}/`, proxyToken, limiter, (req, res) => {
   console.log('received welcome email req')
+  console.log('req.body', req.body)
   const today = getDay()
   const welSub = req.body
-  createPass().then(pass => {
-    console.log('pass', pass)
-    console.log('req.body', req.body)
-    createHash(pass, passStore)
-    addSubToStore(welSub, pass)
+  const email = req.body.Email
+  const pass = createPass()
+  console.log('pass', pass)
+  addSubToStore(welSub, pass).then(() => {
     console.log('subStore', subStore)
     const type = 'welcome'
-    const name = welSub.Name
-    const email = welSub.Email
-    const welPkg = {
-      to: {
-        name: name,
-        email: email,
-      },
-      from: {
-        name: 'arthuranteater',
-        email: 'no-reply@huntcodes.co'
-      },
-      subject: `Welcome to arthuranteater, ${name}`,
-      text: 'Welcome to arthuranteater!',
-      html: `<img src="cid:logo" width="80" height="80"><h2>Welcome to arthuranteater, ${name}!</h2><h3><strong>Sharing projects, coding challenges, new tech, and best practices</strong></h3>
-    <p><strong>You have selected to receive alerts for the categories: ${welSub.Categories}. If our email went into to spam, please mark it as not spam and add us to your contacts.</strong></p>
-    <p><strong>Copy the Subscriber ID and paste into the <a href="https://arthuranteater.com/subscribe" target="_blank">subscribe page</a>.</strong></p>
-    <h2><strong>Subscriber ID: ${pass}</strong></h2>
-    <div><a href="https://huntcodes.co/#contact" target="_blank">Contact Us</a><span></div>`,
-      attachments: [
-        {
-          content: logo.base64,
-          filename: 'logo.png',
-          type: 'image/png',
-          disposition: 'inline',
-          content_id: 'logo'
-        },
-      ]
-    }
+    const nWel = new Welcome(welSub.Name, email, pass, welSub.Categories, logo.base64)
+    const welPkg = nWel.create()
+    console.log('welPkg', welPkg)
     sgMail.send(welPkg, (err, sgres) => {
       if (err) {
         const mes = err.toString()
@@ -421,15 +394,12 @@ app.post(`/site/${process.env.WELCOME}/`, proxyToken, limiter, (req, res) => {
         console.log(`sent welcome email to ${email}`)
       }
     })
-  }).catch(err => {
-    res.json({ Response: "No pass, please try again" })
-    console.error('createPass:', err)
   })
 })
 
 //add sub
 
-app.post(`/site/${process.env.ADDSUB}/`, passToken, limiter, (req, res, next) => {
+app.post(`/site/${process.env.ADDSUB}/`, proxyToken, limiter, (req, res, next) => {
   console.log('received add subscriber req')
   findSubInStore(req.body.id).then(addSub => {
     queries.findSub(addSub.Email).then(data => {
@@ -450,7 +420,7 @@ app.post(`/site/${process.env.ADDSUB}/`, passToken, limiter, (req, res, next) =>
       console.error('Query Error:', err)
     })
   }).catch(err => {
-    res.json({ Response: 'No matches in store' })
+    res.json({ Response: 'No matching ID, please try again' })
     console.error('findSubInStore:', err)
   })
 })
@@ -542,7 +512,7 @@ app.post(`/site/${process.env.BYE}/`, proxyToken, limiter, (req, res) => {
 
 //delete sub
 
-app.post(`/site/${process.env.DELSUB}/`, passToken, limiter, (req, res, next) => {
+app.post(`/site/${process.env.DELSUB}/`, proxyToken, limiter, (req, res, next) => {
   console.log('received delete sub req')
   const id = req.body.id
   queries.delSub(id).then(delSub => {
